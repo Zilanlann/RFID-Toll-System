@@ -31,11 +31,13 @@ if __name__ == '__main__':
     # 这里如果不加上一个while True，程序执行一次就自动跳出了
     while True:
         a = input("输入要发送的数据：")
+        #
+        if a == "exit":
+            break
         send(a)
-        sleep(0.5)  # 起到一个延时的效果
-        data = recv(serial)
-        if data != '':
-            print("receive : ", data)
-            if data == b'x':
-                print("exit")
-                break
+        while True:
+            sleep(0.5)  # 起到一个延时的效果
+            data = recv(serial)
+            if data.decode('ascii') != '':
+                print("receive: ", data.decode('ascii'))
+                # break
