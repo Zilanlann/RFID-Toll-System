@@ -1,48 +1,46 @@
 import pymysql
 
-# 连接到MySQL数据库
-cnx = pymysql.connect(
+db = pymysql.connect(
     host="localhost",
     db="mysql",
     user="root",
     password="kiwMmya7xtS%DE"
 )
-cursor = cnx.cursor()
+cursor = db.cursor()
 
-# 创建表
-create_table_query = """
-CREATE TABLE IF NOT EXISTS employees (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    age INT,
-    department VARCHAR(255)
-)
-"""
-cursor.execute(create_table_query)
 
-# 插入数据
-insert_data_query = """
-INSERT INTO employees (name, age, department)
-VALUES ('张三', 30, '技术部'),
-       ('李四', 28, '市场部'),
-       ('王五', 35, '人事部')
-"""
-cursor.execute(insert_data_query)
-cnx.commit()
+def init_table():
+    """初始化toll_system表"""
+    create_table_query = """
+    CREATE TABLE IF NOT EXISTS toll_system (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        car VARCHAR(20) NOT NULL,
+        card_id VARCHAR(20) NOT NULL
+    )
+    """
+    cursor.execute(create_table_query)
 
-# 查询数据
-select_data_query = "SELECT * FROM employees"
-cursor.execute(select_data_query)
 
-# 打印查询结果
-for row in cursor:
-    print(row)
+def add_new_car(car: str, card_id: str):
+    insert_data_query = """
+    INSERT INTO toll_system (car, card_id)
+    VALUES ('%s', '%s')
+    """ % (car, card_id)
+    cursor.execute(insert_data_query)
+    db.commit()
 
-# 删除数据
-delete_data_query = "DELETE FROM employees WHERE id=1"
-cursor.execute(delete_data_query)
-cnx.commit()
 
-# 关闭游标和连接
-cursor.close()
-cnx.close()
+def check_car_exists(quest: str):
+    # 执行查询
+    cursor.execute("SELECT * FROM toll_system WHERE car=%s", quest)
+    result = cursor.fetchone()
+    # 返回查询结果
+    return result is not None
+
+
+def delete_datas():
+    """删除所有数据"""
+    delete_data_query = "DELETE FROM toll_system"
+    cursor.execute(delete_data_query)
+    db.commit()
+    return
