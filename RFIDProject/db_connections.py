@@ -10,37 +10,57 @@ cursor = db.cursor()
 
 
 def init_table():
-    """初始化toll_system表"""
-    create_table_query = """
-    CREATE TABLE IF NOT EXISTS toll_system (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        car VARCHAR(20) NOT NULL,
-        card_id VARCHAR(20) NOT NULL
+    """初始化VehicleInfo, ChargeRecords, RFIDTags表"""
+    create_vehicle_info = """
+    CREATE TABLE IF NOT EXISTS VehicleInfo (
+        VehicleID INT AUTO_INCREMENT PRIMARY KEY,
+        LicensePlate VARCHAR(20) NOT NULL,
+        VehicleType VARCHAR(50),
+        OwnerName VARCHAR(100),
+        ContactInfo VARCHAR(100)
     )
     """
-    cursor.execute(create_table_query)
+    create_rfid_tags = """
+    CREATE TABLE IF NOT EXISTS RFIDTags (
+        TagID INT AUTO_INCREMENT PRIMARY KEY,
+        TagNumber VARCHAR(50) NOT NULL,
+        VehicleID INT,
+        IsActive TINYINT(1) DEFAULT 1,
+        FOREIGN KEY (VehicleID) REFERENCES VehicleInfo(VehicleID)
+    );
+    """
+    create_charge_records = """
+    CREATE TABLE IF NOT EXISTS ChargeRecords (
+        RecordID INT AUTO_INCREMENT PRIMARY KEY,
+        VehicleID INT,
+        RFIDTagID INT,
+        EntryTime DATETIME,
+        ExitTime DATETIME,
+        Charge DECIMAL(10, 2),
+        FOREIGN KEY (VehicleID) REFERENCES VehicleInfo(VehicleID),
+        FOREIGN KEY (RFIDTagID) REFERENCES RFIDTags(TagID)
+    );
+    """
+    cursor.execute(create_vehicle_info)
+    cursor.execute(create_charge_records)
+    cursor.execute(create_rfid_tags)
 
 
 def add_new_car(car: str, card_id: str):
+    """添加一条车辆数据以及关联的RFIDTag"""
     insert_data_query = """
-    INSERT INTO toll_system (car, card_id)
+    INSERT INTO VehicleInfo (LicensePlate)
+    VALUES ('%s')
+    """ % car
+    vehicle_id = cursor.execute("SELECT * FROM VehicleInfo where LicensePlate=%s", car)
+    insert_rfid = """
+    INSERT INTO RFIDTags (TagNumber, VehicleID)
     VALUES ('%s', '%s')
-    """ % (car, card_id)
+    """ % (card_id, vehicle_id)
     cursor.execute(insert_data_query)
+    cursor.execute(insert_rfid)
     db.commit()
 
 
-def check_car_exists(quest: str):
-    # 执行查询
-    cursor.execute("SELECT * FROM toll_system WHERE car=%s", quest)
-    result = cursor.fetchone()
-    # 返回查询结果
-    return result is not None
-
-
-def delete_datas():
-    """删除所有数据"""
-    delete_data_query = "DELETE FROM toll_system"
-    cursor.execute(delete_data_query)
-    db.commit()
-    return
+def delete_all():
+    cursor.execute("DROP TABLE IF EXISTS ChargeRecords, VehicleInfo, RFIDTags;")
