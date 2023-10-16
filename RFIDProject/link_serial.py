@@ -4,7 +4,8 @@ import serial
 
 
 def init_serial():
-    ser = serial.Serial('COM10', 9600, timeout=0.5)
+    """初始化串口"""
+    ser = serial.Serial('COM9', 9600, timeout=0.5)
     if ser.isOpen():
         print("串口打开成功")
     else:
@@ -13,6 +14,7 @@ def init_serial():
 
 
 def recv(ser):
+    """接收字符串"""
     while True:
         data = ser.read_all()
         if data == '':
@@ -24,6 +26,7 @@ def recv(ser):
 
 
 def send(ser, send_data):
+    """向串口发送字符串"""
     if ser.isOpen():
         ser.write(send_data.encode('utf-8'))  # 编码
     else:
@@ -31,6 +34,7 @@ def send(ser, send_data):
 
 
 def get_card_id(ser):
+    """获取RFIDTagID"""
     send(ser, "IC#")
     while True:
         sleep(0.5)  # 起到一个延时的效果
