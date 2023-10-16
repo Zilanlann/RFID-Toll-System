@@ -51,19 +51,26 @@ def init_table():
 def add_new_car(car: str, card_id: str):
     """添加一条车辆数据以及关联的RFIDTag"""
     try:
-        # 插入车辆数据
-        insert_data_query = "INSERT INTO vehicle_info (LicensePlate) VALUES (%s)"
-        cursor.execute(insert_data_query, car)
-        db.commit()  # 提交事务
+        # 检查LicensePlate是否已经存在
+        cursor.execute("SELECT VehicleID FROM vehicle_info WHERE LicensePlate = %s", (car,))
+        existing_vehicle = cursor.fetchone()
 
-        # 获取插入后的车辆ID
-        cursor.execute("select LAST_INSERT_ID()")
-        vehicle_id = cursor.fetchone()[0]
+        if existing_vehicle:
+            print(f"车辆已存在，VehicleID: {existing_vehicle[0]}")
+        else:
+            # 插入车辆数据
+            insert_data_query = "INSERT INTO vehicle_info (LicensePlate) VALUES (%s)"
+            cursor.execute(insert_data_query, car)
+            db.commit()  # 提交事务
 
-        # 插入RFID标签数据
-        insert_rfid = "INSERT INTO rfid_tags (TagNumber, VehicleID) VALUES (%s, %s)"
-        cursor.execute(insert_rfid, (card_id, vehicle_id))
-        db.commit()
+            # 获取插入后的车辆ID
+            cursor.execute("select LAST_INSERT_ID()")
+            vehicle_id = cursor.fetchone()[0]
+
+            # 插入RFID标签数据
+            insert_rfid = "INSERT INTO rfid_tags (TagNumber, VehicleID) VALUES (%s, %s)"
+            cursor.execute(insert_rfid, (card_id, vehicle_id))
+            db.commit()
     except Exception as e:
         db.rollback()  # 发生异常时回滚事务
         print(f"An error occurred: {e}")
@@ -89,6 +96,7 @@ def car_entry(tag_number):
 
 
 def car_exit(tag_number):
+    """车辆离开停车场，并返回总费用"""
     try:
         # 查找与标签号相关的车辆和RFID标签ID
         cursor.execute("SELECT VehicleID, TagID AS RFIDTagID FROM rfid_tags WHERE TagNumber = %s", tag_number)
@@ -107,16 +115,38 @@ def car_exit(tag_number):
         time_difference = exit_time - entry_time
         hours = time_difference.total_seconds()
         charge = hours * hourly_rate / 3600
-        print(charge)
+        charge = round(charge, 2)
 
         # 更新离开时间和费用
         update_query = "UPDATE charge_records SET ExitTime = %s, Charge = %s WHERE RFIDTagID = %s AND ExitTime IS NULL"
         cursor.execute(update_query, (exit_time, charge, rfid_tag_id))
         db.commit()  # 提交事务
+        return charge
 
     except Exception as e:
         db.rollback()  # 发生异常时回滚事务
         print(f"An error occurred: {e}")
+
+
+def determine_entry_or_exit(tag_number):
+    """检测到IC卡之后判断是车辆进入还是离开，执行对应的函数"""
+    cursor.execute("SELECT COUNT(*) FROM rfid_tags WHERE TagNumber = %s", tag_number)
+    exist = cursor.fetchone()[0]
+    if exist == 0:
+        return -2
+    cursor.execute("SELECT VehicleID FROM rfid_tags WHERE TagNumber = %s", tag_number)
+    vehicle_id = cursor.fetchone()[0]
+    cursor.execute(
+        "SELECT COUNT(*) FROM charge_records WHERE VehicleID = %s AND ExitTime IS NULL",
+        vehicle_id)
+    entry_count = cursor.fetchone()[0]
+
+    if entry_count > 0:
+        charge = car_exit(tag_number)
+        return charge
+    else:
+        car_entry(tag_number)
+        return -1
 
 
 def delete_all():
